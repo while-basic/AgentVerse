@@ -22,7 +22,7 @@ try:
     from openai.error import OpenAIError
 except ImportError:
     is_openai_available = False
-    logging.warning("openai package is not installed")
+    logger.warn("openai package is not installed")
 else:
     # openai.proxy = os.environ.get("http_proxy")
     # if openai.proxy is None:
@@ -30,6 +30,10 @@ else:
     if os.environ.get("OPENAI_API_KEY") != None:
         openai.api_key = os.environ.get("OPENAI_API_KEY")
         is_openai_available = True
+        # set openai api base url if it is set
+        if os.environ.get("OPENAI_BASE_URL") != None:
+            openai.base_url = os.environ.get("OPENAI_BASE_URL")
+            print("use new openai base url", openai.base_url)
     elif os.environ.get("AZURE_OPENAI_API_KEY") != None:
         openai.api_type = "azure"
         openai.api_key = os.environ.get("AZURE_OPENAI_API_KEY")
@@ -37,7 +41,7 @@ else:
         openai.api_version = "2023-05-15"
         is_openai_available = True
     else:
-        logging.warning(
+        logger.warn(
             "OpenAI API key is not set. Please set the environment variable OPENAI_API_KEY"
         )
         is_openai_available = False
@@ -97,7 +101,7 @@ class OpenAIChatArgs(BaseModelArgs):
 @llm_registry.register("gpt-35-turbo")
 @llm_registry.register("gpt-3.5-turbo")
 @llm_registry.register("gpt-4")
-@llm_registry.register("llama-2-7b-chat-hf")
+@llm_registry.register("local")
 class OpenAIChat(BaseChatModel):
     args: OpenAIChatArgs = Field(default_factory=OpenAIChatArgs)
 
@@ -110,9 +114,10 @@ class OpenAIChat(BaseChatModel):
         for k, v in args.items():
             args[k] = kwargs.pop(k, v)
         if len(kwargs) > 0:
-            logging.warning(f"Unused arguments: {kwargs}")
+            logger.warn(f"Unused arguments: {kwargs}")
         if args["model"] in LOCAL_LLMS:
             openai.api_base = "http://localhost:5000/v1"
+            openai.api_key = "EMPTY"
         super().__init__(args=args, max_retry=max_retry)
 
     @classmethod
